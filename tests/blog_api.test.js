@@ -27,9 +27,8 @@ test("unique identifier property is named id", async () => {
     .get("/api/blogs")
     .expect(200)
     .expect("Content-Type", /application\/json/);
-  console.log(response);
+
   for (const object of response.body) {
-    console.log("ob:", object);
     expect(object.id).toBeDefined();
   }
 });
@@ -53,11 +52,70 @@ test("successfull http post request", async () => {
     .expect("Content-Type", /application\/json/);
 
   const blogsAtEnd = await helper.blogsInDb();
-  console.log("blogsatEnd", blogsAtEnd);
+
   expect(blogsAtEnd).toHaveLength(helper.initialBlogs.length + 1);
 
   const contents = blogsAtEnd.map((n) => n.title);
-  console.log(contents);
 
   expect(contents).toContain("newNoteTitle");
+});
+
+test("check if likes is missing from request", async () => {
+  const newBlog = {
+    title: "testLike",
+    author: "newNoteAuthor",
+    url: "newNoteUrl",
+  };
+
+  await api
+    .post("/api/blogs")
+    .send(newBlog)
+    .expect(201)
+    .expect("Content-Type", /application\/json/);
+
+  const blogsAtEnd = await helper.blogsInDb();
+  const addedBlogs = blogsAtEnd.find((blog) => blog.title === "testLike");
+
+  expect(addedBlogs.likes).toBe(0);
+});
+
+// Write tests related to creating new blogs via the /api/blogs endpoint, that verify that if the title or url properties are missing from the request data, the backend responds to the request with the status code 400 Bad Request.
+
+// Make the required changes to the code so that it passes the test.
+
+test("check if title or url properties are missing", async () => {
+  const newBlog = {
+    author: "newAuthor",
+    likes: 10,
+  };
+
+  const response = await api.post("/api/blogs").send(newBlog);
+
+  expect(response.status).toBe(400);
+});
+
+test("Blog update successful ", async () => {
+  const newBlog = {
+    title: "Masterpiece",
+    author: "Edsger W. Dijkstra",
+    url: "http://www.cs.utexas.edu/~EWD/transcriptions/EWD08xx/EWD808.html",
+    likes: 12,
+  };
+
+  await api.post("/api/blogs").send(newBlog).expect(201);
+
+  const allBlogs = await helper.blogsInDb();
+  const blogToUpdate = allBlogs.find((blog) => blog.title === newBlog.title);
+
+  const updatedBlog = {
+    ...blogToUpdate,
+    likes: blogToUpdate.likes + 1,
+  };
+
+  await api.put(`/api/blogs/${blogToUpdate.id}`).send(updatedBlog).expect(204);
+
+  const blogsAtEnd = await helper.blogsInDb();
+  expect(blogsAtEnd).toHaveLength(helper.initialBlogs.length + 1);
+  const foundBlog = blogsAtEnd.find((blog) => blog.likes === 13);
+  expect(foundBlog.likes).toBe(13);
 });
