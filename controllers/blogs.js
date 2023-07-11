@@ -1,8 +1,10 @@
 const blogsRouter = require("express").Router();
+const jwt = require("jsonwebtoken");
 const Blog = require("../models/blog");
+const User = require("../models/user");
 
 blogsRouter.get("/", async (request, response, next) => {
-  const blogs = await Blog.find({});
+  const blogs = await Blog.find({}).populate("user", { username: 1, name: 1 });
   try {
     response.json(blogs);
   } catch (error) {
@@ -11,19 +13,32 @@ blogsRouter.get("/", async (request, response, next) => {
 });
 
 blogsRouter.post("/", async (request, response, next) => {
-  const blog = new Blog(request.body);
+  const body = request.body;
 
-  if (!blog.likes) {
-    blog.likes = 0;
+  const user = await User.findById(body.userId);
+
+  if (!body.likes) {
+    body.likes = 0;
   }
 
-  if (!blog.title || !blog.url) {
+  if (!body.title || !body.url) {
     response.status(400).end();
   }
 
+  const blog = new Blog({
+    title: body.title,
+    author: body.author,
+    url: body.url,
+    likes: body.likes,
+    comments: body.comments,
+    user: user.id,
+  });
+
   try {
-    const savedblog = await blog.save();
-    response.status(201).json(savedblog);
+    const savedBlog = await blog.save();
+    user.blogs = user.blogs.concat(savedBlog.id);
+    await user.save();
+    response.status(201).json(savedBlog);
   } catch (error) {
     next(error);
   }
